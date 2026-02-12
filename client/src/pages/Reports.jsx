@@ -11,8 +11,8 @@ const Reports = () => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const recRes = await axios.get('http://localhost:5000/api/reports/recommendations');
-                const actRes = await axios.get('http://localhost:5000/api/reports/activity');
+                const recRes = await axios.get('/api/reports/recommendations');
+                const actRes = await axios.get('/api/reports/activity');
                 setRecommendations(recRes.data);
                 setActivity(actRes.data);
             } catch (err) {

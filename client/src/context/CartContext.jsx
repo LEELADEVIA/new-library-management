@@ -12,7 +12,7 @@ export const CartProvider = ({ children }) => {
     const fetchCart = async () => {
         if (!user) return;
         try {
-            const res = await axios.get('http://localhost:5000/api/cart', {
+            const res = await axios.get('/api/cart', {
                 headers: { Authorization: `Bearer ${user.token}` }
             });
             setCartItems(res.data);
@@ -34,7 +34,7 @@ export const CartProvider = ({ children }) => {
 
     const addToCart = async (bookId) => {
         try {
-            await axios.post('http://localhost:5000/api/cart', { bookId }, {
+            await axios.post('/api/cart', { bookId }, {
                 headers: { Authorization: `Bearer ${user.token}` }
             });
             await fetchCart();
@@ -46,7 +46,7 @@ export const CartProvider = ({ children }) => {
 
     const removeFromCart = async (bookId) => {
         try {
-            await axios.delete(`http://localhost:5000/api/cart/${bookId}`, {
+            await axios.delete(`/api/cart/${bookId}`, {
                 headers: { Authorization: `Bearer ${user.token}` }
             });
             await fetchCart();

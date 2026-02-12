@@ -27,7 +27,7 @@ const Search = () => {
 
         setLoading(true);
         try {
-            const res = await axios.get(`http://localhost:5000/api/books/search?query=${searchTerm}`);
+            const res = await axios.get(`/api/books/search?query=${searchTerm}`);
             setBooks(res.data);
         } catch (err) {
             console.error('Search error:', err);
@@ -46,7 +46,7 @@ const Search = () => {
             const fetchByCategory = async () => {
                 setLoading(true);
                 try {
-                    const res = await axios.get(`http://localhost:5000/api/books/category/${category}`);
+                    const res = await axios.get(`/api/books/category/${category}`);
                     setBooks(res.data);
                 } catch (err) {
                     console.error(err);
@@ -102,7 +102,7 @@ const Search = () => {
     const submitRate = async () => {
         if (!selectedBook) return;
         try {
-            await axios.post('http://localhost:5000/api/borrow/rate', {
+            await axios.post('/api/borrow/rate', {
                 bookId: selectedBook._id,
                 rating: ratingValue
             }, {
@@ -122,13 +122,13 @@ const Search = () => {
         if (!selectedBook) return;
         try {
             // 1. Borrow
-            await axios.post('http://localhost:5000/api/borrow', { bookId: selectedBook._id }, {
+            await axios.post('/api/borrow', { bookId: selectedBook._id }, {
                 headers: { Authorization: `Bearer ${user.token}` }
             });
 
             // 2. Rate if recommended
             if (recommendValue === 'yes') {
-                await axios.post('http://localhost:5000/api/borrow/rate', {
+                await axios.post('/api/borrow/rate', {
                     bookId: selectedBook._id,
                     rating: ratingValue
                 }, {

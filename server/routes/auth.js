@@ -25,12 +25,19 @@ router.post('/register', async (req, res) => {
         await user.save();
         res.status(201).json({ message: 'Registration successful! You can now log in.' });
     } catch (err) {
-        console.error('Registration error:', err);
-        if (err.code === 11000) {
+        console.error('Registration error details:', {
+            message: err.message,
+            code: err.code,
+            stack: err.stack,
+            keyValue: err.keyValue
+        });
+
+        if (err.code === 11000 && err.keyValue) {
             const field = Object.keys(err.keyValue)[0];
             return res.status(409).json({ error: `${field} already exists` });
         }
-        res.status(400).json({ error: err.message });
+
+        res.status(400).json({ error: err.message || 'Registration failed' });
     }
 });
 
