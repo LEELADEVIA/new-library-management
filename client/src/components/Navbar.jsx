@@ -1,6 +1,6 @@
 import React, { useContext } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Library, LayoutGrid, Search as SearchIcon, FileText, User, LogOut } from 'lucide-react';
+import { Library, LayoutGrid, Search as SearchIcon, FileText, UserCircle, LogOut } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
 
 const Navbar = () => {
@@ -34,10 +34,8 @@ const Navbar = () => {
                         <li className={isActive('/reports') ? 'active' : ''}>
                             <Link to="/reports"><FileText size={18} /> Reports</Link>
                         </li>
-                        <li className="user-profile">
-                            <span className="welcome-text">
-                                <User size={16} /> {user.username}
-                            </span>
+                        <li className="user-profile" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <UserCircle size={24} style={{ color: 'var(--primary)' }} />
                         </li>
                         <li>
                             <button onClick={handleLogout} className="logout-btn">

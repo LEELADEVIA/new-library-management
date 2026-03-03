@@ -6,7 +6,9 @@ const bookSchema = new mongoose.Schema({
     category: { type: String, required: true },
     borrowCount: { type: Number, default: 0 },
     averageRating: { type: Number, default: 0 },
-    totalRatings: { type: Number, default: 0 }
+    totalRatings: { type: Number, default: 0 },
+    totalCount: { type: Number, default: 5 },
+    availableCount: { type: Number, default: 5 }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Book', bookSchema);

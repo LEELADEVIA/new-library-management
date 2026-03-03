@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext, useCallback } from 'react';
 import axios from 'axios';
 import { useLocation } from 'react-router-dom';
-import { Search as SearchIcon, BookOpen, User, Star, Loader2, BookX } from 'lucide-react';
+import { Search as SearchIcon, BookOpen, User, Star, Loader2, BookX, Package, CheckCircle, XCircle, Calendar } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
 
 const Search = () => {
@@ -10,10 +10,15 @@ const Search = () => {
     const [loading, setLoading] = useState(false);
 
     // Modal State
-    const [activeModal, setActiveModal] = useState(null); // 'rate' | 'borrow' | null
+    const [activeModal, setActiveModal] = useState(null); // 'rate' | 'borrow' | 'success' | 'error' | null
     const [selectedBook, setSelectedBook] = useState(null);
     const [ratingValue, setRatingValue] = useState(5);
     const [recommendValue, setRecommendValue] = useState('yes'); // 'yes' | 'no'
+    
+    // Success/Error Modal State
+    const [successMessage, setSuccessMessage] = useState('');
+    const [dueDate, setDueDate] = useState('');
+    const [errorMessage, setErrorMessage] = useState('');
 
     const { user } = useContext(AuthContext);
     const location = useLocation();
@@ -108,22 +113,36 @@ const Search = () => {
             }, {
                 headers: { Authorization: `Bearer ${user.token}` }
             });
-            alert("Thank you for your rating!");
-            closeModals();
+            setSuccessMessage('Thank you for your rating!');
+            setDueDate('');
+            setActiveModal('success');
             fetchBooks(query);
         } catch (err) {
             console.error(err);
-            alert("Error submitting rating.");
+            setErrorMessage('Error submitting rating.');
+            setActiveModal('error');
         }
     };
 
     // Submit Borrow
     const submitBorrow = async () => {
         if (!selectedBook) return;
+        if (selectedBook.availableCount <= 0) {
+            setErrorMessage('This book is currently not available for borrowing.');
+            setActiveModal('error');
+            return;
+        }
         try {
             // 1. Borrow
-            await axios.post('/api/borrow', { bookId: selectedBook._id }, {
+            const borrowRes = await axios.post('/api/borrow', { bookId: selectedBook._id }, {
                 headers: { Authorization: `Bearer ${user.token}` }
+            });
+
+            const borrowDueDate = new Date(borrowRes.data.dueDate).toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
             });
 
             // 2. Rate if recommended
@@ -134,16 +153,29 @@ const Search = () => {
                 }, {
                     headers: { Authorization: `Bearer ${user.token}` }
                 });
-                alert('Book borrowed and rated successfully!');
+                setSuccessMessage(`"${selectedBook.title}" borrowed and rated successfully!`);
             } else {
-                alert('Book borrowed successfully.');
+                setSuccessMessage(`"${selectedBook.title}" borrowed successfully!`);
             }
 
-            closeModals();
-            fetchBooks(query);
+            setDueDate(borrowDueDate);
+            setActiveModal('success');
+            
+            // Refresh books to update availability count
+            if (query) {
+                fetchBooks(query);
+            } else {
+                const params = new URLSearchParams(location.search);
+                const category = params.get('category');
+                if (category) {
+                    const res = await axios.get(`/api/books/category/${category}`);
+                    setBooks(res.data);
+                }
+            }
         } catch (err) {
             console.error(err);
-            alert(err.response?.data?.message || 'Error processing request');
+            setErrorMessage(err.response?.data?.message || 'Error processing request');
+            setActiveModal('error');
         }
     };
 
@@ -183,7 +215,7 @@ const Search = () => {
                             <th>Book Title</th>
                             <th>Author</th>
                             <th>Rating</th>
-                            <th>Borrow Count</th>
+                            <th>Availability</th>
                             <th>Action</th>
                         </tr>
                     </thead>
@@ -214,16 +246,44 @@ const Search = () => {
                                         </div>
                                     </td>
                                     <td>
-                                        <span className="table-borrow-count">{book.borrowCount || 0} Borrows</span>
+                                        <span 
+                                            className="table-availability"
+                                            style={{
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: '0.4rem',
+                                                padding: '0.4rem 0.8rem',
+                                                borderRadius: '20px',
+                                                fontSize: '0.85rem',
+                                                fontWeight: 600,
+                                                background: book.availableCount > 0 ? '#dcfce7' : '#fee2e2',
+                                                color: book.availableCount > 0 ? '#16a34a' : '#dc2626'
+                                            }}
+                                        >
+                                            <Package size={14} />
+                                            {book.availableCount > 0 
+                                                ? `${book.availableCount} / ${book.totalCount} Available` 
+                                                : 'Out of Stock'}
+                                        </span>
                                     </td>
                                     <td>
                                         <div style={{ display: 'flex', gap: '0.5rem' }}>
                                             <button
                                                 className="borrow-btn"
                                                 onClick={() => openBorrowModal(book)}
-                                                style={{ padding: '0.6rem 1.2rem', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', fontSize: '0.9rem' }}
+                                                disabled={book.availableCount <= 0}
+                                                style={{ 
+                                                    padding: '0.6rem 1.2rem', 
+                                                    background: book.availableCount > 0 ? 'var(--primary)' : '#9ca3af', 
+                                                    color: 'white', 
+                                                    border: 'none', 
+                                                    borderRadius: '8px', 
+                                                    fontWeight: 600, 
+                                                    cursor: book.availableCount > 0 ? 'pointer' : 'not-allowed', 
+                                                    fontSize: '0.9rem' 
+                                                }}
                                             >
-                                                Borrow
+                                                {book.availableCount > 0 ? 'Borrow' : 'Unavailable'}
                                             </button>
                                             <button
                                                 onClick={() => openRateModal(book)}
@@ -291,6 +351,18 @@ const Search = () => {
                         {activeModal === 'borrow' && (
                             <>
                                 <h3 className="modal-title">Borrow "{selectedBook?.title}"</h3>
+                                <p style={{ 
+                                    fontSize: '0.95rem', 
+                                    marginBottom: '1rem',
+                                    padding: '0.5rem 1rem',
+                                    borderRadius: '8px',
+                                    background: selectedBook?.availableCount > 0 ? '#dcfce7' : '#fee2e2',
+                                    color: selectedBook?.availableCount > 0 ? '#16a34a' : '#dc2626',
+                                    display: 'inline-block'
+                                }}>
+                                    <Package size={14} style={{ marginRight: '0.4rem', verticalAlign: 'middle' }} />
+                                    {selectedBook?.availableCount} of {selectedBook?.totalCount} copies available
+                                </p>
                                 <p style={{ fontSize: '1.1rem', marginBottom: '1rem' }}>Do you recommend this book?</p>
 
                                 <div className="radio-group">
@@ -337,6 +409,94 @@ const Search = () => {
                                     <button className="btn-primary" onClick={submitBorrow}>Confirm Borrow</button>
                                 </div>
                             </>
+                        )}
+
+                        {activeModal === 'success' && (
+                            <div style={{ textAlign: 'center', padding: '1rem' }}>
+                                <div style={{
+                                    width: '80px',
+                                    height: '80px',
+                                    background: '#dcfce7',
+                                    borderRadius: '50%',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    margin: '0 auto 1.5rem'
+                                }}>
+                                    <CheckCircle size={48} color="#16a34a" />
+                                </div>
+                                <h3 style={{ fontSize: '1.5rem', marginBottom: '1rem', color: '#16a34a' }}>
+                                    Borrowed Successfully!
+                                </h3>
+                                <p style={{ fontSize: '1.1rem', color: 'var(--gray-700)', marginBottom: '1.5rem' }}>
+                                    {successMessage}
+                                </p>
+                                {dueDate && (
+                                    <div style={{
+                                        background: '#f0f9ff',
+                                        border: '1px solid #bae6fd',
+                                        borderRadius: '12px',
+                                        padding: '1rem 1.5rem',
+                                        marginBottom: '1.5rem'
+                                    }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                                            <Calendar size={20} color="#0284c7" />
+                                            <span style={{ fontWeight: 600, color: '#0284c7' }}>Due Date</span>
+                                        </div>
+                                        <p style={{ fontSize: '1.1rem', fontWeight: 600, color: '#0369a1', margin: 0 }}>
+                                            {dueDate}
+                                        </p>
+                                        <p style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '0.5rem' }}>
+                                            Book will auto-return after 10 days
+                                        </p>
+                                    </div>
+                                )}
+                                <button 
+                                    className="btn-primary" 
+                                    onClick={closeModals}
+                                    style={{ 
+                                        padding: '0.8rem 2rem',
+                                        fontSize: '1rem',
+                                        background: '#16a34a'
+                                    }}
+                                >
+                                    OK, Got it!
+                                </button>
+                            </div>
+                        )}
+
+                        {activeModal === 'error' && (
+                            <div style={{ textAlign: 'center', padding: '1rem' }}>
+                                <div style={{
+                                    width: '80px',
+                                    height: '80px',
+                                    background: '#fee2e2',
+                                    borderRadius: '50%',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    margin: '0 auto 1.5rem'
+                                }}>
+                                    <XCircle size={48} color="#dc2626" />
+                                </div>
+                                <h3 style={{ fontSize: '1.5rem', marginBottom: '1rem', color: '#dc2626' }}>
+                                    Oops! Something went wrong
+                                </h3>
+                                <p style={{ fontSize: '1.1rem', color: 'var(--gray-700)', marginBottom: '1.5rem' }}>
+                                    {errorMessage}
+                                </p>
+                                <button 
+                                    className="btn-primary" 
+                                    onClick={closeModals}
+                                    style={{ 
+                                        padding: '0.8rem 2rem',
+                                        fontSize: '1rem',
+                                        background: '#dc2626'
+                                    }}
+                                >
+                                    Close
+                                </button>
+                            </div>
                         )}
                     </div>
                 </div>
